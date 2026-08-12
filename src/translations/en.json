@@ -1,0 +1,23 @@
+{
+  "notifications.menu.notifications": "Notifications",
+  "notifications.bell.tooltip": "Notifications",
+  "notifications.bell.empty": "You have no notifications",
+  "notifications.bell.viewAll": "View all",
+  "notifications.bell.markAllRead": "Mark all read",
+  "notifications.page.title": "Notifications",
+  "notifications.page.empty": "Nothing here yet",
+  "notifications.page.markAllRead": "Mark all as read",
+  "notifications.page.filter.all": "All",
+  "notifications.page.filter.unread": "Unread",
+  "notifications.severity.INFO": "Information",
+  "notifications.severity.ACTION": "Action required",
+  "notifications.severity.WARNING": "Warning",
+  "notifications.category.APPROVAL": "Approval",
+  "notifications.category.ACCOUNT": "Account",
+  "notifications.category.IMPORT": "Import",
+  "notifications.category.COMMS": "Communications",
+  "notifications.category.SYSTEM": "System",
+  "notifications.prefs.title": "Notification preferences",
+  "notifications.prefs.mandatory": "Always on",
+  "notifications.prefs.hint": "Turn off the notifications you do not want. Account and credential messages cannot be disabled."
+}
