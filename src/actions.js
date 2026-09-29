@@ -1,4 +1,6 @@
-import { graphql, formatPageQuery, decodeId } from '@openimis/fe-core';
+import {
+  graphql, formatPageQuery, formatPageQueryWithCount, decodeId,
+} from '@openimis/fe-core';
 
 import { ACTION_TYPE } from './utils/action-type';
 
@@ -31,13 +33,19 @@ export function fetchRecentNotifications(first = 10) {
   return graphql(payload, ACTION_TYPE.FETCH_RECENT);
 }
 
-export function fetchNotifications(filters = []) {
-  const payload = formatPageQuery(
+export function fetchNotifications(filters = [], orderBy = '-createdAt') {
+  const payload = formatPageQueryWithCount(
     'notifications',
-    [...filters, 'orderBy: ["-createdAt"]'],
+    [...filters, `orderBy: ["${orderBy}"]`],
     NOTIFICATION_PROJECTION,
   );
   return graphql(payload, ACTION_TYPE.FETCH_NOTIFICATIONS);
+}
+
+/** The tab counts: every notification, and the unread ones. */
+export function fetchNotificationCounts() {
+  return graphql('query { all: notifications(first: 1) { totalCount } notificationUnreadCount }',
+    ACTION_TYPE.FETCH_COUNTS);
 }
 
 // Plain graphene mutations, not the openIMIS BaseMutation input envelope, so these are

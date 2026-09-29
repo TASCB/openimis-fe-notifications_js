@@ -2,18 +2,24 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useHistory } from 'react-router-dom';
 
+import { useIntl } from 'react-intl';
 import {
-  Badge, IconButton, Menu, MenuItem, Divider, Typography, Box, Tooltip, CircularProgress,
+  Badge, Button, IconButton, Popover, Typography, Tooltip, LinearProgress,
 } from '@material-ui/core';
 import NotificationsIcon from '@material-ui/icons/Notifications';
+import NotificationsNoneOutlinedIcon from '@material-ui/icons/NotificationsNoneOutlined';
+import DoneAllIcon from '@material-ui/icons/DoneAll';
+import ChevronRightIcon from '@material-ui/icons/ChevronRight';
 import { makeStyles } from '@material-ui/core/styles';
-import { FormattedMessage, useTranslations } from '@openimis/fe-core';
+import { alpha } from '@material-ui/core/styles/colorManipulator';
+import { useTranslations } from '@openimis/fe-core';
 
 import { fetchUnreadCount, fetchRecentNotifications, markRead, markAllRead } from '../actions';
 import {
   MODULE_NAME, RIGHT_NOTIFICATION_SEARCH, ROUTE_NOTIFICATIONS,
   FAILURE_BACKOFF_THRESHOLD, BACKOFF_SECONDS,
 } from '../constants';
+import { kindOf, relativeTime, moduleLabel, ToneTile } from './notificationKind';
 
 const useStyles = makeStyles((theme) => ({
   // Matches fe-core LogoutButton so the bell sits consistently beside it.
@@ -29,33 +35,52 @@ const useStyles = makeStyles((theme) => ({
       fontSize: 10,
     },
   },
-  menu: { maxWidth: 420, minWidth: 340 },
-  item: { display: 'block', whiteSpace: 'normal', paddingTop: 10, paddingBottom: 10 },
-  unread: { backgroundColor: 'rgba(0, 105, 92, 0.06)' },
-  subject: { fontWeight: 600, fontSize: 13 },
-  meta: { fontSize: 11, color: theme.palette.text.secondary, marginTop: 2 },
-  empty: { padding: theme.spacing(3), textAlign: 'center', color: theme.palette.text.secondary },
-  footer: { display: 'flex', justifyContent: 'space-between', padding: theme.spacing(1, 2) },
-  link: { fontSize: 12, cursor: 'pointer', color: theme.palette.primary.main },
+  paper: {
+    width: 400, maxWidth: 'calc(100vw - 24px)', borderRadius: 12, overflow: 'hidden',
+    border: `1px solid ${theme.palette.divider}`, boxShadow: '0 12px 32px rgba(0, 0, 0, 0.14)',
+  },
+  head: {
+    display: 'flex', alignItems: 'center', gap: theme.spacing(1), padding: theme.spacing(1.5, 1.5, 1.5, 2),
+    borderBottom: `1px solid ${theme.palette.divider}`,
+  },
+  headTitle: { fontWeight: 600, color: theme.palette.primary.dark || theme.palette.primary.main },
+  count: {
+    minWidth: 22, padding: '0 7px', borderRadius: 11, fontSize: 12, lineHeight: '22px', textAlign: 'center',
+    fontWeight: 600, backgroundColor: alpha(theme.palette.primary.main, 0.1), color: theme.palette.primary.main,
+  },
+  spacer: { flex: 1 },
+  textButton: { textTransform: 'none', fontWeight: 500 },
+  list: { maxHeight: '60vh', overflowY: 'auto', padding: theme.spacing(0.5, 0) },
+  item: {
+    display: 'grid', gridTemplateColumns: '36px minmax(0, 1fr) 10px', gap: theme.spacing(1.5),
+    alignItems: 'center', padding: theme.spacing(1.25, 2), cursor: 'pointer',
+    '&:hover, &:focus': { backgroundColor: theme.palette.action.hover, outline: 'none' },
+  },
+  unread: { backgroundColor: alpha(theme.palette.primary.main, 0.04) },
+  tile: {
+    width: 36, height: 36, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    '& svg': { fontSize: 20 },
+  },
+  subject: {
+    fontSize: 13, fontWeight: 500, color: theme.palette.text.primary, lineHeight: 1.35,
+    display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+  },
+  subjectUnread: { fontWeight: 700, color: theme.palette.primary.dark || theme.palette.primary.main },
+  meta: { fontSize: 12, color: theme.palette.grey[600], marginTop: 2 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.palette.primary.main },
+  empty: {
+    padding: theme.spacing(4, 2), textAlign: 'center', color: theme.palette.grey[600],
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: theme.spacing(1),
+  },
+  foot: { borderTop: `1px solid ${theme.palette.divider}`, padding: theme.spacing(0.75, 1) },
+  viewAll: { width: '100%', justifyContent: 'space-between', textTransform: 'none', fontWeight: 600 },
 }));
-
-function relativeTime(value) {
-  if (!value) return '';
-  // Naive-UTC datetimes serialise without a Z; see developer guide, s.7.
-  const iso = /Z|[+-]\d{2}:?\d{2}$/.test(value) ? value : `${value}Z`;
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return '';
-  const secs = Math.max(0, Math.floor((Date.now() - then) / 1000));
-  if (secs < 60) return 'just now';
-  if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
-  if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`;
-  return `${Math.floor(secs / 86400)}d ago`;
-}
 
 const NotificationBell = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const history = useHistory();
+  const intl = useIntl();
   const { formatMessage } = useTranslations(MODULE_NAME);
 
   const [anchor, setAnchor] = useState(null);
@@ -126,64 +151,73 @@ const NotificationBell = () => {
         </IconButton>
       </Tooltip>
 
-      <Menu
+      <Popover
         anchorEl={anchor}
         open={!!anchor}
         onClose={close}
-        classes={{ paper: classes.menu }}
-        getContentAnchorEl={null}
+        classes={{ paper: classes.paper }}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
-        {fetchingRecent && (
-          <Box className={classes.empty}><CircularProgress size={22} /></Box>
-        )}
-
-        {!fetchingRecent && !recent.length && (
-          <Box className={classes.empty}>
-            <Typography variant="body2">
-              <FormattedMessage module={MODULE_NAME} id="bell.empty" />
-            </Typography>
-          </Box>
-        )}
-
-        {!fetchingRecent && recent.map((item) => (
-          <MenuItem
-            key={item.id}
-            onClick={() => openItem(item)}
-            className={`${classes.item} ${item.isRead ? '' : classes.unread}`}
-          >
-            <div className={classes.subject}>{item.subject}</div>
-            <div className={classes.meta}>
-              {formatMessage(`category.${item.category}`)}
-              {' · '}
-              {relativeTime(item.createdAt)}
-            </div>
-          </MenuItem>
-        ))}
-
-        <Divider />
-        <Box className={classes.footer}>
-          <span
-            className={classes.link}
+        <div className={classes.head}>
+          <Typography variant="subtitle1" className={classes.headTitle}>{formatMessage('bell.title')}</Typography>
+          {!!unreadCount && <span className={classes.count}>{unreadCount}</span>}
+          <div className={classes.spacer} />
+          <Button
+            size="small"
+            color="primary"
+            className={classes.textButton}
+            startIcon={<DoneAllIcon fontSize="small" />}
+            disabled={!unreadCount}
             onClick={onMarkAll}
-            role="button"
-            tabIndex={0}
-            onKeyPress={onMarkAll}
           >
-            <FormattedMessage module={MODULE_NAME} id="bell.markAllRead" />
-          </span>
-          <span
-            className={classes.link}
-            role="button"
-            tabIndex={0}
+            {formatMessage('bell.markAllRead')}
+          </Button>
+        </div>
+        {fetchingRecent && <LinearProgress />}
+        <div className={classes.list}>
+          {!fetchingRecent && !recent.length && (
+            <div className={classes.empty}>
+              <NotificationsNoneOutlinedIcon fontSize="large" />
+              <Typography variant="body2">{formatMessage('bell.empty')}</Typography>
+            </div>
+          )}
+          {recent.map((item) => {
+            const [tone, Icon] = kindOf(item);
+            return (
+              <div
+                key={item.id}
+                className={`${classes.item} ${item.isRead ? '' : classes.unread}`}
+                onClick={() => openItem(item)}
+                onKeyPress={() => openItem(item)}
+                role="button"
+                tabIndex={0}
+              >
+                <ToneTile tone={tone} className={classes.tile}><Icon /></ToneTile>
+                <div>
+                  <div className={`${classes.subject} ${item.isRead ? '' : classes.subjectUnread}`}>{item.subject}</div>
+                  <div className={classes.meta}>
+                    {moduleLabel(formatMessage, item)}
+                    {' · '}
+                    {relativeTime(intl, item.createdAt)}
+                  </div>
+                </div>
+                {!item.isRead ? <span className={classes.dot} /> : <span />}
+              </div>
+            );
+          })}
+        </div>
+        <div className={classes.foot}>
+          <Button
+            color="primary"
+            className={classes.viewAll}
+            endIcon={<ChevronRightIcon />}
             onClick={() => { close(); history.push(`/${ROUTE_NOTIFICATIONS}`); }}
-            onKeyPress={() => { close(); history.push(`/${ROUTE_NOTIFICATIONS}`); }}
           >
-            <FormattedMessage module={MODULE_NAME} id="bell.viewAll" />
-          </span>
-        </Box>
-      </Menu>
+            {formatMessage('bell.viewAll')}
+          </Button>
+        </div>
+      </Popover>
     </>
   );
 };

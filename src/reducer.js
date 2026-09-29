@@ -15,6 +15,8 @@ export const INITIAL_STATE = {
   fetchingNotifications: false,
   notifications: [],
   notificationsPageInfo: {},
+  notificationsTotalCount: 0,
+  allCount: 0,
 
   fetchingPreferences: false,
   types: [],
@@ -64,15 +66,28 @@ function reducer(state = INITIAL_STATE, action) {
         fetchingNotifications: false,
         notifications: parseData(action.payload.data.notifications) || [],
         notificationsPageInfo: action.payload.data.notifications?.pageInfo || {},
+        notificationsTotalCount: action.payload.data.notifications?.totalCount ?? 0,
+      };
+    case SUCCESS(ACTION_TYPE.FETCH_COUNTS):
+      return {
+        ...state,
+        allCount: action.payload?.data?.all?.totalCount ?? state.allCount,
+        unreadCount: action.payload?.data?.notificationUnreadCount ?? state.unreadCount,
       };
     case ERROR(ACTION_TYPE.FETCH_NOTIFICATIONS):
       return { ...state, fetchingNotifications: false, errorNotifications: formatGraphQLError(action.payload) };
 
-    case SUCCESS(ACTION_TYPE.MARK_READ):
-    case SUCCESS(ACTION_TYPE.MARK_ALL_READ): {
+    case SUCCESS(ACTION_TYPE.MARK_READ): {
       const updated = action.payload?.data?.markNotificationsRead?.updated || 0;
       return { ...state, unreadCount: Math.max(0, state.unreadCount - updated) };
     }
+    case SUCCESS(ACTION_TYPE.MARK_ALL_READ):
+      return {
+        ...state,
+        unreadCount: 0,
+        notifications: state.notifications.map((n) => ({ ...n, isRead: true })),
+        recent: state.recent.map((n) => ({ ...n, isRead: true })),
+      };
 
     case REQUEST(ACTION_TYPE.FETCH_PREFERENCES):
       return { ...state, fetchingPreferences: true };
