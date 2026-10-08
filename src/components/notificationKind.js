@@ -11,8 +11,9 @@ import ReportProblemOutlinedIcon from '@material-ui/icons/ReportProblemOutlined'
 import PersonOutlineIcon from '@material-ui/icons/PersonOutline';
 import ChatBubbleOutlineIcon from '@material-ui/icons/ChatBubbleOutline';
 import FlagOutlinedIcon from '@material-ui/icons/FlagOutlined';
+import PaymentOutlinedIcon from '@material-ui/icons/PaymentOutlined';
 
-export const MODULES = ['approval', 'account', 'import', 'comms', 'case'];
+export const MODULES = ['approval', 'account', 'import', 'comms', 'case', 'payment'];
 
 // Icon and colour by what happened (type code), then by severity; category is the fallback.
 export const kindOf = (n) => {
@@ -26,6 +27,7 @@ export const kindOf = (n) => {
   if (code.startsWith('account.')) return ['primary', PersonOutlineIcon];
   if (code.startsWith('comms.')) return ['primary', ChatBubbleOutlineIcon];
   if (code.startsWith('case.')) return ['primary', FlagOutlinedIcon];
+  if (code.startsWith('payment.')) return ['primary', PaymentOutlinedIcon];
   return ['primary', NotificationsNoneOutlinedIcon];
 };
 

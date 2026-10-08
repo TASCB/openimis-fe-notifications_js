@@ -22,6 +22,7 @@
   "notifications.module.import": "Import",
   "notifications.module.comms": "Communication",
   "notifications.module.case": "Case management",
+  "notifications.module.payment": "Payments",
   "notifications.severity.INFO": "Information",
   "notifications.severity.ACTION": "Action required",
   "notifications.severity.WARNING": "Warning",
