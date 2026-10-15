@@ -7,7 +7,7 @@ import AssignmentTurnedInOutlinedIcon from '@material-ui/icons/AssignmentTurnedI
 import ReplayIcon from '@material-ui/icons/Replay';
 import HighlightOffIcon from '@material-ui/icons/HighlightOff';
 import CloudUploadOutlinedIcon from '@material-ui/icons/CloudUploadOutlined';
-import ReportProblemOutlinedIcon from '@material-ui/icons/ReportProblemOutlined';
+import ErrorOutlineIcon from '@material-ui/icons/ErrorOutline';
 import PersonOutlineIcon from '@material-ui/icons/PersonOutline';
 import ChatBubbleOutlineIcon from '@material-ui/icons/ChatBubbleOutline';
 import FlagOutlinedIcon from '@material-ui/icons/FlagOutlined';
@@ -18,7 +18,7 @@ export const MODULES = ['approval', 'account', 'import', 'comms', 'case', 'payme
 // Icon and colour by what happened (type code), then by severity; category is the fallback.
 export const kindOf = (n) => {
   const code = n.typeCode || '';
-  if (n.severity === 'WARNING') return ['warning', ReportProblemOutlinedIcon];
+  if (n.severity === 'WARNING') return ['warning', ErrorOutlineIcon];
   if (/rejected/.test(code)) return ['error', HighlightOffIcon];
   if (/returned/.test(code)) return ['info', ReplayIcon];
   if (/step\.assigned|submitted|queued|ready_to_provision/.test(code)) return ['success', CheckCircleOutlineIcon];
