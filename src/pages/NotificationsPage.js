@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useHistory } from 'react-router-dom';
 import { useIntl } from 'react-intl';
 
 import {
-  Paper, Typography, Button, LinearProgress, MenuItem, Select, Tooltip,
+  Paper, Typography, Button, LinearProgress, MenuItem, Select, TablePagination, Tooltip,
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import { alpha } from '@material-ui/core/styles/colorManipulator';
@@ -17,7 +17,7 @@ import ChevronRightIcon from '@material-ui/icons/ChevronRight';
 import { useTranslations, withModulesManager } from '@openimis/fe-core';
 
 import {
-  fetchNotifications, fetchNotificationCounts, markRead, markAllRead,
+  fetchNotifications, fetchNotificationCounts, markRead, markAllRead, setListState,
 } from '../actions';
 import { MODULE_NAME, RIGHT_NOTIFICATION_SEARCH } from '../constants';
 import {
@@ -25,7 +25,7 @@ import {
 } from '../components/notificationKind';
 
 const CATEGORIES = ['APPROVAL', 'ACCOUNT', 'IMPORT', 'COMMS', 'SYSTEM'];
-const PAGE_SIZE = 100;
+const PAGE_SIZES = [20, 50, 100];
 
 const useStyles = makeStyles((theme) => ({
   page: { ...theme.page, display: 'flex', flexDirection: 'column', gap: theme.spacing(2) },
@@ -93,7 +93,6 @@ const useStyles = makeStyles((theme) => ({
     padding: theme.spacing(6), textAlign: 'center', color: theme.palette.grey[600],
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: theme.spacing(1),
   },
-  more: { fontSize: '0.8125rem', color: theme.palette.grey[600], textAlign: 'center' },
 }));
 
 function Row({ n, classes, t, intl, onOpen }) {
@@ -142,9 +141,10 @@ const NotificationsPage = () => {
   const dispatch = useDispatch();
   const history = useHistory();
   const { formatMessage: t, formatMessageWithValues: tv } = useTranslations(MODULE_NAME);
-  const [unreadOnly, setUnreadOnly] = useState(false);
-  const [order, setOrder] = useState('-createdAt');
-  const [category, setCategory] = useState('');
+  const {
+    unreadOnly, order, category, page, pageSize,
+  } = useSelector((state) => state.notifications.listState);
+  const setFilter = (patch) => dispatch(setListState({ ...patch, page: 0 }));
 
   const rights = useSelector((state) => state.core?.user?.i_user?.rights ?? []);
   const items = useSelector((state) => state.notifications?.notifications ?? []);
@@ -155,14 +155,17 @@ const NotificationsPage = () => {
   const allowed = rights.includes(RIGHT_NOTIFICATION_SEARCH);
 
   const load = () => {
-    const filters = [`first: ${PAGE_SIZE}`];
+    const filters = [`first: ${pageSize}`, `offset: ${page * pageSize}`];
     if (unreadOnly) filters.push('isRead: false');
     if (category) filters.push(`category: ${category}`);
     dispatch(fetchNotifications(filters, order));
     dispatch(fetchNotificationCounts());
   };
 
-  useEffect(() => { if (allowed) load(); }, [unreadOnly, order, category, allowed]);
+  useEffect(() => { if (allowed) load(); }, [unreadOnly, order, category, page, pageSize, allowed]);
+  useEffect(() => {
+    if (!fetching && !items.length && page > 0) dispatch(setListState({ page: page - 1 }));
+  }, [fetching, items.length, page]);
 
   if (!allowed) return null;
 
@@ -180,7 +183,7 @@ const NotificationsPage = () => {
         variant={active ? 'contained' : 'text'}
         color={active ? 'primary' : 'default'}
         disableElevation
-        onClick={() => setUnreadOnly(value)}
+        onClick={() => setFilter({ unreadOnly: value })}
       >
         {label}
         <span className={`${classes.count} ${active ? classes.countActive : ''}`}>{count}</span>
@@ -218,7 +221,7 @@ const NotificationsPage = () => {
             variant="outlined"
             className={classes.select}
             value={order}
-            onChange={(e) => setOrder(e.target.value)}
+            onChange={(e) => setFilter({ order: e.target.value })}
             renderValue={(v) => (
               <>
                 <SwapVertIcon fontSize="small" color="action" />
@@ -234,7 +237,7 @@ const NotificationsPage = () => {
             className={classes.select}
             value={category}
             displayEmpty
-            onChange={(e) => setCategory(e.target.value)}
+            onChange={(e) => setFilter({ category: e.target.value })}
             renderValue={(v) => (
               <>
                 <FilterListIcon fontSize="small" color="action" />
@@ -257,10 +260,18 @@ const NotificationsPage = () => {
           {items.map((n) => (
             <Row key={n.id} n={n} classes={classes} t={t} intl={intl} onOpen={openItem} />
           ))}
-          {total > items.length && (
-            <div className={classes.more}>{tv('page.showing', { shown: items.length, total })}</div>
-          )}
         </div>
+        {total > 0 && (
+          <TablePagination
+            component="div"
+            count={total}
+            page={page}
+            rowsPerPage={pageSize}
+            rowsPerPageOptions={PAGE_SIZES}
+            onPageChange={(e, next) => dispatch(setListState({ page: next }))}
+            onRowsPerPageChange={(e) => setFilter({ pageSize: parseInt(e.target.value, 10) })}
+          />
+        )}
       </Paper>
     </div>
   );

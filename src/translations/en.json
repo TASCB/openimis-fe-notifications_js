@@ -16,7 +16,6 @@
   "notifications.page.sort.newest": "Newest first",
   "notifications.page.sort.oldest": "Oldest first",
   "notifications.page.allTypes": "All types",
-  "notifications.page.showing": "Showing the {shown} most relevant of {total}",
   "notifications.module.approval": "Approval",
   "notifications.module.account": "Account",
   "notifications.module.import": "Import",

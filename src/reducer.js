@@ -17,6 +17,9 @@ export const INITIAL_STATE = {
   notificationsPageInfo: {},
   notificationsTotalCount: 0,
   allCount: 0,
+  listState: {
+    unreadOnly: false, order: '-createdAt', category: '', page: 0, pageSize: 20,
+  },
 
   fetchingPreferences: false,
   types: [],
@@ -88,6 +91,9 @@ function reducer(state = INITIAL_STATE, action) {
         notifications: state.notifications.map((n) => ({ ...n, isRead: true })),
         recent: state.recent.map((n) => ({ ...n, isRead: true })),
       };
+
+    case ACTION_TYPE.SET_LIST_STATE:
+      return { ...state, listState: { ...state.listState, ...action.payload } };
 
     case REQUEST(ACTION_TYPE.FETCH_PREFERENCES):
       return { ...state, fetchingPreferences: true };

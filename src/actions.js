@@ -62,6 +62,10 @@ export function markAllRead() {
   return graphql(mutation, ACTION_TYPE.MARK_ALL_READ);
 }
 
+export function setListState(patch) {
+  return { type: ACTION_TYPE.SET_LIST_STATE, payload: patch };
+}
+
 export function fetchPreferences() {
   const payload = `query {
     notificationTypes { edges { node { id code label category severity isMandatory } } }
