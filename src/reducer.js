@@ -18,7 +18,7 @@ export const INITIAL_STATE = {
   notificationsTotalCount: 0,
   allCount: 0,
   listState: {
-    unreadOnly: false, order: '-createdAt', category: '', page: 0, pageSize: 20,
+    unreadOnly: false, order: '-createdAt', module: '', severity: '', search: '', page: 0, pageSize: 20,
   },
 
   fetchingPreferences: false,

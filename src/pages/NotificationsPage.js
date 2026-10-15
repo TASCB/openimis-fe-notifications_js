@@ -1,10 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useHistory } from 'react-router-dom';
 import { useIntl } from 'react-intl';
 
 import {
-  Paper, Typography, Button, LinearProgress, MenuItem, Select, TablePagination, Tooltip,
+  Paper, Typography, Button, InputAdornment, LinearProgress, MenuItem, Select, TablePagination, TextField, Tooltip,
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import { alpha } from '@material-ui/core/styles/colorManipulator';
@@ -14,6 +14,8 @@ import SwapVertIcon from '@material-ui/icons/SwapVert';
 import FilterListIcon from '@material-ui/icons/FilterList';
 import AccessTimeIcon from '@material-ui/icons/AccessTime';
 import ChevronRightIcon from '@material-ui/icons/ChevronRight';
+import SearchIcon from '@material-ui/icons/Search';
+import PriorityHighIcon from '@material-ui/icons/PriorityHigh';
 import { useTranslations, withModulesManager } from '@openimis/fe-core';
 
 import {
@@ -21,10 +23,11 @@ import {
 } from '../actions';
 import { MODULE_NAME, RIGHT_NOTIFICATION_SEARCH } from '../constants';
 import {
-  kindOf, parseDate, relativeTime, moduleLabel, ToneTile,
+  kindOf, parseDate, relativeTime, moduleLabel, ToneTile, MODULES,
 } from '../components/notificationKind';
 
-const CATEGORIES = ['APPROVAL', 'ACCOUNT', 'IMPORT', 'COMMS', 'SYSTEM'];
+const SEVERITIES = ['ACTION', 'WARNING'];
+const SEARCH_DELAY_MS = 400;
 const PAGE_SIZES = [20, 50, 100];
 
 const useStyles = makeStyles((theme) => ({
@@ -55,6 +58,7 @@ const useStyles = makeStyles((theme) => ({
   },
   countActive: { backgroundColor: theme.palette.common.white, color: theme.palette.primary.main },
   spacer: { flex: 1 },
+  search: { minWidth: 260, '& .MuiOutlinedInput-root': { borderRadius: 8, fontSize: '0.875rem' } },
   select: {
     minWidth: 190, borderRadius: 8, fontSize: '0.875rem',
     '& .MuiSelect-select': { display: 'flex', alignItems: 'center', gap: theme.spacing(1), paddingLeft: theme.spacing(1.5) },
@@ -142,9 +146,15 @@ const NotificationsPage = () => {
   const history = useHistory();
   const { formatMessage: t, formatMessageWithValues: tv } = useTranslations(MODULE_NAME);
   const {
-    unreadOnly, order, category, page, pageSize,
+    unreadOnly, order, module, severity, search, page, pageSize,
   } = useSelector((state) => state.notifications.listState);
   const setFilter = (patch) => dispatch(setListState({ ...patch, page: 0 }));
+  const [searchText, setSearchText] = useState(search);
+  useEffect(() => {
+    if (searchText.trim() === search) return undefined;
+    const timer = setTimeout(() => setFilter({ search: searchText.trim() }), SEARCH_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [searchText]);
 
   const rights = useSelector((state) => state.core?.user?.i_user?.rights ?? []);
   const items = useSelector((state) => state.notifications?.notifications ?? []);
@@ -157,12 +167,14 @@ const NotificationsPage = () => {
   const load = () => {
     const filters = [`first: ${pageSize}`, `offset: ${page * pageSize}`];
     if (unreadOnly) filters.push('isRead: false');
-    if (category) filters.push(`category: ${category}`);
+    if (module) filters.push(`module: "${module}"`);
+    if (severity) filters.push(`severity: ${severity}`);
+    if (search) filters.push(`search: ${JSON.stringify(search)}`);
     dispatch(fetchNotifications(filters, order));
     dispatch(fetchNotificationCounts());
   };
 
-  useEffect(() => { if (allowed) load(); }, [unreadOnly, order, category, page, pageSize, allowed]);
+  useEffect(() => { if (allowed) load(); }, [unreadOnly, order, module, severity, search, page, pageSize, allowed]);
   useEffect(() => {
     if (!fetching && !items.length && page > 0) dispatch(setListState({ page: page - 1 }));
   }, [fetching, items.length, page]);
@@ -216,6 +228,15 @@ const NotificationsPage = () => {
             {segment(false, t('page.filter.all'), allCount)}
             {segment(true, t('page.filter.unread'), unreadCount)}
           </div>
+          <TextField
+            variant="outlined"
+            size="small"
+            className={classes.search}
+            placeholder={t('page.search')}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" color="action" /></InputAdornment> }}
+          />
           <div className={classes.spacer} />
           <Select
             variant="outlined"
@@ -235,18 +256,34 @@ const NotificationsPage = () => {
           <Select
             variant="outlined"
             className={classes.select}
-            value={category}
+            value={module}
             displayEmpty
-            onChange={(e) => setFilter({ category: e.target.value })}
+            onChange={(e) => setFilter({ module: e.target.value })}
             renderValue={(v) => (
               <>
                 <FilterListIcon fontSize="small" color="action" />
-                {v ? t(`category.${v}`) : t('page.allTypes')}
+                {v ? t(`module.${v}`) : t('page.allModules')}
               </>
             )}
           >
-            <MenuItem value="">{t('page.allTypes')}</MenuItem>
-            {CATEGORIES.map((c) => <MenuItem key={c} value={c}>{t(`category.${c}`)}</MenuItem>)}
+            <MenuItem value="">{t('page.allModules')}</MenuItem>
+            {MODULES.map((m) => <MenuItem key={m} value={m}>{t(`module.${m}`)}</MenuItem>)}
+          </Select>
+          <Select
+            variant="outlined"
+            className={classes.select}
+            value={severity}
+            displayEmpty
+            onChange={(e) => setFilter({ severity: e.target.value })}
+            renderValue={(v) => (
+              <>
+                <PriorityHighIcon fontSize="small" color="action" />
+                {v ? t(`severity.${v}`) : t('page.anyPriority')}
+              </>
+            )}
+          >
+            <MenuItem value="">{t('page.anyPriority')}</MenuItem>
+            {SEVERITIES.map((s) => <MenuItem key={s} value={s}>{t(`severity.${s}`)}</MenuItem>)}
           </Select>
         </div>
         {fetching && <LinearProgress />}
