@@ -4,138 +4,111 @@ import { useHistory } from 'react-router-dom';
 import { useIntl } from 'react-intl';
 
 import {
-  Paper, Typography, Button, InputAdornment, LinearProgress, MenuItem, Select, TablePagination, TextField, Tooltip,
+  Paper, Grid, Typography, Button, Divider, LinearProgress, MenuItem, TablePagination, TextField,
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
-import { alpha } from '@material-ui/core/styles/colorManipulator';
-import NotificationsNoneOutlinedIcon from '@material-ui/icons/NotificationsNoneOutlined';
 import DoneAllIcon from '@material-ui/icons/DoneAll';
-import SwapVertIcon from '@material-ui/icons/SwapVert';
-import FilterListIcon from '@material-ui/icons/FilterList';
-import AccessTimeIcon from '@material-ui/icons/AccessTime';
 import ChevronRightIcon from '@material-ui/icons/ChevronRight';
-import SearchIcon from '@material-ui/icons/Search';
-import PriorityHighIcon from '@material-ui/icons/PriorityHigh';
-import { useTranslations, withModulesManager } from '@openimis/fe-core';
+import {
+  Helmet, SearcherPane, useTranslations, withModulesManager,
+} from '@openimis/fe-core';
 
 import {
   fetchNotifications, fetchNotificationCounts, markRead, markAllRead, setListState,
 } from '../actions';
 import { MODULE_NAME, RIGHT_NOTIFICATION_SEARCH } from '../constants';
 import {
-  kindOf, parseDate, relativeTime, moduleLabel, ToneTile, MODULES,
+  parseDate, relativeTime, moduleLabel, MODULES,
 } from '../components/notificationKind';
 
+const PAGE_SIZES = [20, 50, 100];
 const SEVERITIES = ['ACTION', 'WARNING'];
 const SEARCH_DELAY_MS = 400;
-const PAGE_SIZES = [20, 50, 100];
+const DEFAULT_FILTERS = {
+  unreadOnly: false, order: '-createdAt', module: '', severity: '', search: '',
+};
 
 const useStyles = makeStyles((theme) => ({
-  page: { ...theme.page, display: 'flex', flexDirection: 'column', gap: theme.spacing(2) },
-  card: {
-    borderRadius: 12, border: `1px solid ${theme.palette.divider}`, boxShadow: 'none',
-    backgroundColor: theme.palette.background.paper,
-  },
-  header: { display: 'flex', alignItems: 'center', gap: theme.spacing(2), padding: theme.spacing(2, 2.5) },
-  headerIcon: {
-    width: 56, height: 56, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: theme.palette.primary.main, backgroundColor: alpha(theme.palette.primary.main, 0.08), flex: '0 0 auto',
-  },
-  headerText: { flex: 1, minWidth: 0 },
-  title: { fontWeight: 600, color: theme.palette.primary.dark || theme.palette.primary.main },
-  subtitle: { color: theme.palette.grey[700], marginTop: theme.spacing(0.25) },
-  toolbar: {
-    display: 'flex', alignItems: 'center', gap: theme.spacing(1), flexWrap: 'wrap', padding: theme.spacing(2),
-  },
-  segments: {
-    display: 'flex', padding: 3, borderRadius: 10, border: `1px solid ${theme.palette.divider}`,
-    backgroundColor: theme.palette.background.paper,
-  },
-  segment: { textTransform: 'none', fontWeight: 600, borderRadius: 8, padding: theme.spacing(0.5, 2) },
-  count: {
-    marginLeft: theme.spacing(1), minWidth: 22, padding: '0 6px', borderRadius: 11, fontSize: 12, lineHeight: '22px',
-    textAlign: 'center', backgroundColor: alpha(theme.palette.primary.main, 0.1), color: theme.palette.primary.main,
-  },
-  countActive: { backgroundColor: theme.palette.common.white, color: theme.palette.primary.main },
-  spacer: { flex: 1 },
-  search: { minWidth: 260, '& .MuiOutlinedInput-root': { borderRadius: 8, fontSize: '0.875rem' } },
-  select: {
-    minWidth: 190, borderRadius: 8, fontSize: '0.875rem',
-    '& .MuiSelect-select': { display: 'flex', alignItems: 'center', gap: theme.spacing(1), paddingLeft: theme.spacing(1.5) },
-  },
-  list: { display: 'flex', flexDirection: 'column', gap: theme.spacing(1), padding: theme.spacing(0, 2, 2) },
+  page: theme.page,
+  paper: theme.paper.paper,
+  tableTitle: theme.table.title,
+  filterItem: { padding: theme.spacing(1) },
   row: {
-    display: 'grid', alignItems: 'center', gap: theme.spacing(2), padding: theme.spacing(1.5, 2),
-    gridTemplateColumns: '48px minmax(0, 1fr) 160px 150px 24px',
-    borderRadius: 10, border: `1px solid ${theme.palette.divider}`, backgroundColor: theme.palette.background.paper,
-    '&:hover': { borderColor: theme.palette.primary.light },
-    [theme.breakpoints.down('sm')]: { gridTemplateColumns: '48px minmax(0, 1fr) 24px' },
+    display: 'grid',
+    gridTemplateColumns: '12px minmax(0, 1fr) 190px 24px',
+    alignItems: 'center',
+    gap: theme.spacing(2),
+    padding: theme.spacing(1.5, 2),
+    [theme.breakpoints.down('sm')]: { gridTemplateColumns: '12px minmax(0, 1fr) 24px' },
   },
-  clickable: { cursor: 'pointer' },
-  unread: { backgroundColor: alpha(theme.palette.primary.main, 0.035) },
-  tile: {
-    width: 48, height: 48, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
+  clickable: {
+    cursor: 'pointer',
+    '&:hover': { backgroundColor: theme.palette.action.hover },
+    '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: -2 },
   },
-  subject: { fontWeight: 500, color: theme.palette.text.primary, overflowWrap: 'anywhere' },
-  subjectUnread: { fontWeight: 700, color: theme.palette.primary.dark || theme.palette.primary.main },
   dot: {
-    display: 'inline-block', width: 8, height: 8, borderRadius: 4, marginRight: theme.spacing(1),
-    verticalAlign: 'middle', backgroundColor: theme.palette.primary.main,
+    width: 8, height: 8, borderRadius: 4, backgroundColor: theme.palette.primary.main,
   },
-  body: { fontSize: '0.875rem', color: theme.palette.grey[700], overflowWrap: 'anywhere' },
-  meta: { fontSize: '0.75rem', color: theme.palette.grey[600], marginTop: 2 },
-  chipCell: { [theme.breakpoints.down('sm')]: { display: 'none' } },
-  chip: {
-    display: 'inline-block', padding: '2px 10px', borderRadius: 12, fontSize: '0.75rem', fontWeight: 600,
-  },
-  time: {
-    display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8125rem', color: theme.palette.grey[700],
-    whiteSpace: 'nowrap', [theme.breakpoints.down('sm')]: { display: 'none' },
-  },
-  chevron: { color: theme.palette.grey[500] },
-  empty: {
-    padding: theme.spacing(6), textAlign: 'center', color: theme.palette.grey[600],
-    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: theme.spacing(1),
-  },
+  subject: { color: theme.palette.text.primary, overflowWrap: 'anywhere' },
+  subjectUnread: { fontWeight: 600 },
+  body: { color: theme.palette.text.secondary, overflowWrap: 'anywhere' },
+  meta: { color: theme.palette.text.secondary },
+  action: { color: theme.palette.error.main, fontWeight: 500 },
+  warning: { color: theme.palette.warning.dark, fontWeight: 500 },
+  when: { textAlign: 'right', [theme.breakpoints.down('sm')]: { display: 'none' } },
+  chevron: { color: theme.palette.text.secondary, display: 'flex' },
+  empty: { padding: theme.spacing(4), textAlign: 'center', color: theme.palette.text.secondary },
 }));
 
-function Row({ n, classes, t, intl, onOpen }) {
-  const [tone, Icon] = kindOf(n);
+function Row({
+  n, classes, t, intl, onOpen,
+}) {
   const date = parseDate(n.createdAt);
-  const relative = relativeTime(intl, n.createdAt);
-  const chipLabel = moduleLabel(t, n);
+  const opens = !!n.targetRoute || !n.isRead;
+  const open = () => { if (opens) onOpen(n); };
+  const priority = SEVERITIES.includes(n.severity) ? n.severity : null;
   return (
     <div
-      className={`${classes.row} ${n.targetRoute ? classes.clickable : ''} ${n.isRead ? '' : classes.unread}`}
-      onClick={() => onOpen(n)}
-      onKeyPress={() => onOpen(n)}
-      role="button"
-      tabIndex={0}
+      className={`${classes.row} ${opens ? classes.clickable : ''}`}
+      onClick={open}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } }}
+      role={opens ? 'button' : undefined}
+      tabIndex={opens ? 0 : undefined}
     >
-      <ToneTile tone={tone} className={classes.tile}><Icon /></ToneTile>
+      <div>{!n.isRead && <div className={classes.dot} title={t('page.filter.unread')} />}</div>
       <div>
-        <div className={`${classes.subject} ${n.isRead ? '' : classes.subjectUnread}`}>
-          {!n.isRead && <span className={classes.dot} />}
+        <Typography variant="body1" className={`${classes.subject} ${n.isRead ? '' : classes.subjectUnread}`}>
           {n.subject}
-        </div>
-        {!!n.body && <div className={classes.body}>{n.body}</div>}
-        <div className={classes.meta}>
-          {t(`category.${n.category}`)}
-          {' · '}
-          {t(`severity.${n.severity}`)}
-        </div>
+        </Typography>
+        {!!n.body && <Typography variant="body2" className={classes.body}>{n.body}</Typography>}
+        <Typography variant="caption" className={classes.meta}>
+          {moduleLabel(t, n)}
+          {priority && (
+            <>
+              {' · '}
+              <span className={priority === 'ACTION' ? classes.action : classes.warning}>{t(`severity.${priority}`)}</span>
+            </>
+          )}
+        </Typography>
       </div>
-      <div className={classes.chipCell}>
-        <ToneTile tone={tone} className={classes.chip} chip>{chipLabel}</ToneTile>
+      <div className={classes.when}>
+        <Typography variant="body2">{date ? intl.formatDate(date, { dateStyle: 'medium', timeStyle: 'short' }) : ''}</Typography>
+        <Typography variant="caption" className={classes.meta}>{relativeTime(intl, n.createdAt)}</Typography>
       </div>
-      <Tooltip title={date ? intl.formatDate(date, { dateStyle: 'medium', timeStyle: 'short' }) : ''}>
-        <div className={classes.time}>
-          <AccessTimeIcon fontSize="small" />
-          {relative}
-        </div>
-      </Tooltip>
       <div className={classes.chevron}>{!!n.targetRoute && <ChevronRightIcon />}</div>
     </div>
+  );
+}
+
+function SelectFilter({
+  label, value, onChange, children, className,
+}) {
+  return (
+    <Grid item xs={12} sm={6} md={2} className={className}>
+      <TextField select fullWidth label={label} value={value} onChange={(e) => onChange(e.target.value)}>
+        {children}
+      </TextField>
+    </Grid>
   );
 }
 
@@ -145,9 +118,17 @@ const NotificationsPage = () => {
   const dispatch = useDispatch();
   const history = useHistory();
   const { formatMessage: t, formatMessageWithValues: tv } = useTranslations(MODULE_NAME);
+
+  const rights = useSelector((state) => state.core?.user?.i_user?.rights ?? []);
+  const items = useSelector((state) => state.notifications?.notifications ?? []);
+  const total = useSelector((state) => state.notifications?.notificationsTotalCount ?? 0);
+  const unreadCount = useSelector((state) => state.notifications?.unreadCount ?? 0);
+  const fetching = useSelector((state) => state.notifications?.fetchingNotifications ?? false);
   const {
     unreadOnly, order, module, severity, search, page, pageSize,
   } = useSelector((state) => state.notifications.listState);
+  const allowed = rights.includes(RIGHT_NOTIFICATION_SEARCH);
+
   const setFilter = (patch) => dispatch(setListState({ ...patch, page: 0 }));
   const [searchText, setSearchText] = useState(search);
   useEffect(() => {
@@ -155,14 +136,6 @@ const NotificationsPage = () => {
     const timer = setTimeout(() => setFilter({ search: searchText.trim() }), SEARCH_DELAY_MS);
     return () => clearTimeout(timer);
   }, [searchText]);
-
-  const rights = useSelector((state) => state.core?.user?.i_user?.rights ?? []);
-  const items = useSelector((state) => state.notifications?.notifications ?? []);
-  const total = useSelector((state) => state.notifications?.notificationsTotalCount ?? 0);
-  const allCount = useSelector((state) => state.notifications?.allCount ?? 0);
-  const unreadCount = useSelector((state) => state.notifications?.unreadCount ?? 0);
-  const fetching = useSelector((state) => state.notifications?.fetchingNotifications ?? false);
-  const allowed = rights.includes(RIGHT_NOTIFICATION_SEARCH);
 
   const load = () => {
     const filters = [`first: ${pageSize}`, `offset: ${page * pageSize}`];
@@ -184,130 +157,77 @@ const NotificationsPage = () => {
   const openItem = (n) => {
     if (!n.isRead) dispatch(markRead([n.id]));
     if (n.targetRoute) history.push(n.targetRoute);
-    else if (!n.isRead) setTimeout(load, 300);
+    else setTimeout(load, 300);
   };
 
-  const segment = (value, label, count) => {
-    const active = unreadOnly === value;
-    return (
-      <Button
-        className={classes.segment}
-        variant={active ? 'contained' : 'text'}
-        color={active ? 'primary' : 'default'}
-        disableElevation
-        onClick={() => setFilter({ unreadOnly: value })}
-      >
-        {label}
-        <span className={`${classes.count} ${active ? classes.countActive : ''}`}>{count}</span>
-      </Button>
-    );
+  const reset = () => {
+    setSearchText('');
+    setFilter(DEFAULT_FILTERS);
   };
+
+  const filterPane = (
+    <Grid container>
+      <SelectFilter className={classes.filterItem} label={t('page.show')} value={unreadOnly ? 'unread' : 'all'} onChange={(v) => setFilter({ unreadOnly: v === 'unread' })}>
+        <MenuItem value="all">{t('page.filter.all')}</MenuItem>
+        <MenuItem value="unread">{t('page.filter.unread')}</MenuItem>
+      </SelectFilter>
+      <SelectFilter className={classes.filterItem} label={t('page.module')} value={module} onChange={(v) => setFilter({ module: v })}>
+        <MenuItem value="">{t('page.allModules')}</MenuItem>
+        {MODULES.map((m) => <MenuItem key={m} value={m}>{t(`module.${m}`)}</MenuItem>)}
+      </SelectFilter>
+      <SelectFilter className={classes.filterItem} label={t('page.priority')} value={severity} onChange={(v) => setFilter({ severity: v })}>
+        <MenuItem value="">{t('page.anyPriority')}</MenuItem>
+        {SEVERITIES.map((s) => <MenuItem key={s} value={s}>{t(`severity.${s}`)}</MenuItem>)}
+      </SelectFilter>
+      <SelectFilter className={classes.filterItem} label={t('page.sort')} value={order} onChange={(v) => setFilter({ order: v })}>
+        <MenuItem value="-createdAt">{t('page.sort.newest')}</MenuItem>
+        <MenuItem value="createdAt">{t('page.sort.oldest')}</MenuItem>
+      </SelectFilter>
+      <Grid item xs={12} md={4} className={classes.filterItem}>
+        <TextField fullWidth label={t('page.search')} value={searchText} onChange={(e) => setSearchText(e.target.value)} />
+      </Grid>
+    </Grid>
+  );
 
   return (
     <div className={classes.page}>
-      <Paper className={`${classes.card} ${classes.header}`}>
-        <div className={classes.headerIcon}><NotificationsNoneOutlinedIcon fontSize="large" /></div>
-        <div className={classes.headerText}>
-          <Typography variant="h6" className={classes.title}>{t('page.title')}</Typography>
-          <Typography variant="body2" className={classes.subtitle}>{t('page.subtitle')}</Typography>
-        </div>
-        <Button
-          variant="outlined"
-          color="primary"
-          startIcon={<DoneAllIcon />}
-          disabled={!unreadCount}
-          onClick={() => dispatch(markAllRead())}
-        >
-          {t('page.markAllRead')}
-        </Button>
-      </Paper>
-
-      <Paper className={classes.card}>
-        <div className={classes.toolbar}>
-          <div className={classes.segments}>
-            {segment(false, t('page.filter.all'), allCount)}
-            {segment(true, t('page.filter.unread'), unreadCount)}
-          </div>
-          <TextField
-            variant="outlined"
-            size="small"
-            className={classes.search}
-            placeholder={t('page.search')}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" color="action" /></InputAdornment> }}
-          />
-          <div className={classes.spacer} />
-          <Select
-            variant="outlined"
-            className={classes.select}
-            value={order}
-            onChange={(e) => setFilter({ order: e.target.value })}
-            renderValue={(v) => (
-              <>
-                <SwapVertIcon fontSize="small" color="action" />
-                {tv('page.sortBy', { order: t(`page.sort.${v === '-createdAt' ? 'newest' : 'oldest'}`) })}
-              </>
-            )}
-          >
-            <MenuItem value="-createdAt">{t('page.sort.newest')}</MenuItem>
-            <MenuItem value="createdAt">{t('page.sort.oldest')}</MenuItem>
-          </Select>
-          <Select
-            variant="outlined"
-            className={classes.select}
-            value={module}
-            displayEmpty
-            onChange={(e) => setFilter({ module: e.target.value })}
-            renderValue={(v) => (
-              <>
-                <FilterListIcon fontSize="small" color="action" />
-                {v ? t(`module.${v}`) : t('page.allModules')}
-              </>
-            )}
-          >
-            <MenuItem value="">{t('page.allModules')}</MenuItem>
-            {MODULES.map((m) => <MenuItem key={m} value={m}>{t(`module.${m}`)}</MenuItem>)}
-          </Select>
-          <Select
-            variant="outlined"
-            className={classes.select}
-            value={severity}
-            displayEmpty
-            onChange={(e) => setFilter({ severity: e.target.value })}
-            renderValue={(v) => (
-              <>
-                <PriorityHighIcon fontSize="small" color="action" />
-                {v ? t(`severity.${v}`) : t('page.anyPriority')}
-              </>
-            )}
-          >
-            <MenuItem value="">{t('page.anyPriority')}</MenuItem>
-            {SEVERITIES.map((s) => <MenuItem key={s} value={s}>{t(`severity.${s}`)}</MenuItem>)}
-          </Select>
-        </div>
+      <Helmet title={t('page.title')} />
+      <SearcherPane module={MODULE_NAME} filterPane={filterPane} reset={reset} refresh={load} />
+      <Paper className={classes.paper}>
+        <Grid container className={classes.tableTitle} alignItems="center" justifyContent="space-between">
+          <Grid item>
+            <Typography>{tv('page.results', { count: total, unread: unreadCount })}</Typography>
+          </Grid>
+          <Grid item>
+            <Button color="primary" startIcon={<DoneAllIcon />} disabled={!unreadCount} onClick={() => dispatch(markAllRead())}>
+              {t('page.markAllRead')}
+            </Button>
+          </Grid>
+        </Grid>
+        <Divider />
         {fetching && <LinearProgress />}
-        <div className={classes.list}>
-          {!fetching && !items.length && (
-            <div className={classes.empty}>
-              <NotificationsNoneOutlinedIcon fontSize="large" />
-              {t(unreadOnly ? 'page.emptyUnread' : 'page.empty')}
-            </div>
-          )}
-          {items.map((n) => (
-            <Row key={n.id} n={n} classes={classes} t={t} intl={intl} onOpen={openItem} />
-          ))}
-        </div>
+        {!fetching && !items.length && (
+          <Typography className={classes.empty}>{t(unreadOnly ? 'page.emptyUnread' : 'page.empty')}</Typography>
+        )}
+        {items.map((n, i) => (
+          <React.Fragment key={n.id}>
+            {i > 0 && <Divider />}
+            <Row n={n} classes={classes} t={t} intl={intl} onOpen={openItem} />
+          </React.Fragment>
+        ))}
         {total > 0 && (
-          <TablePagination
-            component="div"
-            count={total}
-            page={page}
-            rowsPerPage={pageSize}
-            rowsPerPageOptions={PAGE_SIZES}
-            onPageChange={(e, next) => dispatch(setListState({ page: next }))}
-            onRowsPerPageChange={(e) => setFilter({ pageSize: parseInt(e.target.value, 10) })}
-          />
+          <>
+            <Divider />
+            <TablePagination
+              component="div"
+              count={total}
+              page={page}
+              rowsPerPage={pageSize}
+              rowsPerPageOptions={PAGE_SIZES}
+              onPageChange={(e, next) => dispatch(setListState({ page: next }))}
+              onRowsPerPageChange={(e) => setFilter({ pageSize: parseInt(e.target.value, 10) })}
+            />
+          </>
         )}
       </Paper>
     </div>
