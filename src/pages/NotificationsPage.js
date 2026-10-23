@@ -5,9 +5,11 @@ import { useIntl } from 'react-intl';
 
 import {
   Paper, Grid, Typography, Button, Divider, LinearProgress, MenuItem, TablePagination, TextField,
+  Dialog, DialogActions, DialogContent,
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import DoneAllIcon from '@material-ui/icons/DoneAll';
+import TuneIcon from '@material-ui/icons/Tune';
 import ChevronRightIcon from '@material-ui/icons/ChevronRight';
 import {
   Helmet, SearcherPane, useTranslations, withModulesManager,
@@ -16,7 +18,8 @@ import {
 import {
   fetchNotifications, fetchNotificationCounts, markRead, markAllRead, setListState,
 } from '../actions';
-import { MODULE_NAME, RIGHT_NOTIFICATION_SEARCH } from '../constants';
+import { MODULE_NAME, RIGHT_NOTIFICATION_SEARCH, RIGHT_PREFERENCE_MANAGE } from '../constants';
+import NotificationPrefsPanel from '../components/NotificationPrefsPanel';
 import {
   parseDate, relativeTime, moduleLabel, MODULES,
 } from '../components/notificationKind';
@@ -128,6 +131,7 @@ const NotificationsPage = () => {
     unreadOnly, order, module, severity, search, page, pageSize,
   } = useSelector((state) => state.notifications.listState);
   const allowed = rights.includes(RIGHT_NOTIFICATION_SEARCH);
+  const [prefsOpen, setPrefsOpen] = useState(false);
 
   const setFilter = (patch) => dispatch(setListState({ ...patch, page: 0 }));
   const [searchText, setSearchText] = useState(search);
@@ -202,9 +206,22 @@ const NotificationsPage = () => {
             <Button color="primary" startIcon={<DoneAllIcon />} disabled={!unreadCount} onClick={() => dispatch(markAllRead())}>
               {t('page.markAllRead')}
             </Button>
+            {rights.includes(RIGHT_PREFERENCE_MANAGE) && (
+              <Button color="primary" startIcon={<TuneIcon />} onClick={() => setPrefsOpen(true)}>
+                {t('page.preferences')}
+              </Button>
+            )}
           </Grid>
         </Grid>
         <Divider />
+        <Dialog open={prefsOpen} onClose={() => setPrefsOpen(false)} maxWidth="sm" fullWidth>
+          <DialogContent>
+            <NotificationPrefsPanel elevation={0} />
+          </DialogContent>
+          <DialogActions>
+            <Button color="primary" onClick={() => setPrefsOpen(false)}>{t('page.close')}</Button>
+          </DialogActions>
+        </Dialog>
         {fetching && <LinearProgress />}
         {!fetching && !items.length && (
           <Typography className={classes.empty}>{t(unreadOnly ? 'page.emptyUnread' : 'page.empty')}</Typography>

@@ -8,6 +8,8 @@
   "notifications.page.title": "Notifications",
   "notifications.page.empty": "Nothing here yet",
   "notifications.page.markAllRead": "Mark all as read",
+  "notifications.page.preferences": "Preferences",
+  "notifications.page.close": "Close",
   "notifications.page.filter.all": "All",
   "notifications.page.filter.unread": "Unread",
   "notifications.page.emptyUnread": "You have no unread notifications",

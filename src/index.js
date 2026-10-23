@@ -8,7 +8,6 @@ import reducer from './reducer';
 import { RIGHT_NOTIFICATION_SEARCH, ROUTE_NOTIFICATIONS } from './constants';
 
 import NotificationBell from './components/NotificationBell';
-import NotificationPrefsPanel from './components/NotificationPrefsPanel';
 import NotificationsPage from './pages/NotificationsPage';
 
 const DEFAULT_CONFIG = {
@@ -32,7 +31,6 @@ const DEFAULT_CONFIG = {
     },
   ],
 
-  'profile.TabPanel.panel': [NotificationPrefsPanel],
 };
 
 export const NotificationsModule = (cfg) => ({ ...DEFAULT_CONFIG, ...cfg });

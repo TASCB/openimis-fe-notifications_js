@@ -16,7 +16,7 @@ const useStyles = makeStyles((theme) => ({
   row: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: theme.spacing(1, 0) },
 }));
 
-const NotificationPrefsPanel = () => {
+const NotificationPrefsPanel = ({ elevation = 1 }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const { formatMessage } = useTranslations(MODULE_NAME);
@@ -43,7 +43,7 @@ const NotificationPrefsPanel = () => {
   };
 
   return (
-    <Paper className={classes.panel}>
+    <Paper className={classes.panel} elevation={elevation}>
       <Typography variant="subtitle1">
         <FormattedMessage module={MODULE_NAME} id="prefs.title" />
       </Typography>
